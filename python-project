@@ -1,0 +1,112 @@
+# Data Analysis Exercise
+# Dataset: Daily Weather Data (NOAA – Seattle)
+from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 1. Load the Dataset
+url = "https://raw.githubusercontent.com/vega/vega-datasets/master/data/seattle-weather.csv"
+df = pd.read_csv(url)
+#print(df.head())
+
+# 2. Change Column Data Type
+df['date'].dtype
+df['date'] = pd.to_datetime(df['date'])
+
+# 3. Rename Columns
+df = df.rename(columns={
+    'temp_max': 'max_temp_c',
+    'temp_min': 'min_temp_c'
+})
+
+# 4. Create a New Column
+df['max_temp_c'] = df['max_temp_c'].astype(int)
+df['min_temp_c'] = df['min_temp_c'].astype(int)
+df['temp_range'] = df['max_temp_c'] - df['min_temp_c']
+
+# 5. Handle Missing Values
+df[df['wind'].isna()]
+df.index[df['wind'].isna()]
+df['wind'].isna().sum()
+#df = df["wind"].fillna(df["wind"].mean())
+
+# 6. Drop Duplicates
+df = df.drop_duplicates(subset='date')
+
+# 7. String Manipulation
+df["weather"] = df["weather"].str.upper()
+df["month"] = df["date"].dt.month_name()
+
+# 8. Filter Data
+#df1 = df[(df["weather"] == "RAIN") & (df["precipitation"] > 5)]
+
+# 9. Sort Data
+#df2 = df1.sort_values(by='precipitation',  ascending=False)
+
+# 10. Aggregate Data
+#df3 = df.groupby("month")["precipitation"].mean()
+#df4 = df.groupby("month") ["temp_range"].mean()
+
+#print(df.head(20))
+
+# 11. Apply Function
+def categorize_temp(temp):
+    if temp < 10:
+        return 'Cold'
+    elif 10 <= temp <= 20:
+        return 'Mild'
+    else:
+        return 'Hot'
+
+df['temp_category'] = df['max_temp_c'].apply(categorize_temp)
+
+# 12. Pivot Table
+# Average 'max_temp_c' indexed by 'month' with columns based on 'weather'.
+pivot_table = pd.pivot_table(
+    df,
+    values='max_temp_c',
+    index='month',
+    columns='weather',
+    aggfunc='mean'
+)
+
+# 13. Reshape Data (Long → Wide)
+# Each 'weather' type becomes a column, values are average precipitation.
+precip_wide = df.pivot_table(
+    values='precipitation',
+    index='month',
+    columns='weather',
+    aggfunc='mean'
+)
+
+# 14. Divide Data into 4 Grids
+# Create quartiles based on 'max_temp_c'.
+df['temp_quartile'] = pd.qcut(df['max_temp_c'], 4, labels=[1, 2, 3, 4])
+
+# 15. Visualization (4 Plots using plt)
+# Create a 2×2 grid of plots.
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+# Bar chart – Average max temperature by month
+df.groupby('month')['max_temp_c'].mean().plot(kind='bar', ax=axes[0, 0])
+axes[0, 0].set_title('Average Max Temperature by Month')
+axes[0, 0].set_ylabel('Temperature (°C)')
+
+# Histogram – Distribution of daily precipitation
+axes[0, 1].hist(df['precipitation'], bins=30)
+axes[0, 1].set_title('Distribution of Daily Precipitation')
+axes[0, 1].set_xlabel('Precipitation')
+
+# Box plot – Max temperature grouped by weather type
+df.boxplot(column='max_temp_c', by='weather', ax=axes[1, 0])
+axes[1, 0].set_title('Max Temperature by Weather Type')
+axes[1, 0].set_ylabel('Temperature (°C)')
+
+# Scatter plot – Wind speed vs. max temperature
+axes[1, 1].scatter(df['wind'], df['max_temp_c'], alpha=0.5)
+axes[1, 1].set_title('Wind Speed vs Max Temperature')
+axes[1, 1].set_xlabel('Wind Speed')
+axes[1, 1].set_ylabel('Max Temperature (°C)')
+
+plt.tight_layout()
+plt.show()
